@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2021 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <bit>
+
 #include "shader_recompiler/frontend/ir/value.h"
 
 namespace Shader::IR {
@@ -15,15 +17,18 @@ Value::Value(IR::Attribute value) noexcept : type{Type::Attribute}, attribute{va
 
 Value::Value(IR::Patch value) noexcept : type{Type::Patch}, patch{value} {}
 
-Value::Value(bool value) noexcept : type{Type::U1}, imm_u1{value} {}
+// The narrow immediates are stored through imm_u64 so the whole union is defined. MSVC 14.50 reads
+// imm_u32 with a 64-bit load and indexes jump tables with it (BlitConstantsPass crashed on the
+// stale upper half an imm_u32 store left behind).
+Value::Value(bool value) noexcept : type{Type::U1}, imm_u64{value ? u64{1} : u64{0}} {}
 
-Value::Value(u8 value) noexcept : type{Type::U8}, imm_u8{value} {}
+Value::Value(u8 value) noexcept : type{Type::U8}, imm_u64{value} {}
 
-Value::Value(u16 value) noexcept : type{Type::U16}, imm_u16{value} {}
+Value::Value(u16 value) noexcept : type{Type::U16}, imm_u64{value} {}
 
-Value::Value(u32 value) noexcept : type{Type::U32}, imm_u32{value} {}
+Value::Value(u32 value) noexcept : type{Type::U32}, imm_u64{value} {}
 
-Value::Value(f32 value) noexcept : type{Type::F32}, imm_f32{value} {}
+Value::Value(f32 value) noexcept : type{Type::F32}, imm_u64{std::bit_cast<u32>(value)} {}
 
 Value::Value(u64 value) noexcept : type{Type::U64}, imm_u64{value} {}
 
